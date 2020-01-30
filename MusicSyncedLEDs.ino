@@ -1,6 +1,9 @@
+// --------------- INCLUDES ---------------
+
 #include "FastLED.h"
 
-// --- STYLE SETTINGS ---
+
+// --------------- STYLE SETTINGS ---------------
 
 // Minimum time before the mode can be changed again (in milliseconds)
 #define CHANGE_MODE_TIME_MIN 5000
@@ -11,7 +14,24 @@
 // To how many sound levels should the volume be mapped?
 #define AMOUNT_LEVELS 20
 
-// --- HARDWARE SETTINGS ---
+// Complete color palette that is circled through
+CRGB colors[] = {
+    CRGB(120, 0, 0),
+    CRGB(90, 30, 0),
+    CRGB(60, 60, 0),
+    CRGB(30, 90, 0),
+    CRGB(0, 120, 0),
+    CRGB(0, 90, 30),
+    CRGB(0, 60, 60),
+    CRGB(0, 30, 90),
+    CRGB(0, 0, 120),
+    CRGB(30, 0, 90),
+    CRGB(60, 0, 60),
+    CRGB(90, 0, 30)
+    };
+
+
+// --------------- HARDWARE SETTINGS ---------------
 
 // Amount of different modes
 #define NUM_MODES 8
@@ -29,14 +49,12 @@
 #define DATA_PIN 5
 
 
-// --- GLOBAL VARIABLES ---
-
-// Some different colors
-CRGB colors[AMOUNT_COLORS];
+// --------------- GLOBAL VARIABLES ---------------
 
 // Led strip array
 CRGB leds[NUM_LEDS];
 
+// Last x samples of the volume
 int volumes[20];
 
 // Current sound level
@@ -61,30 +79,12 @@ int color = 0;
 int mode = 0;
 
 
-// --- PROGRAM ---
+// --------------- PROGRAM ---------------
 
 void setup() {
   // Start communication to LEDs and USB
   Serial.begin(9600);
   FastLED.addLeds<WS2812B, DATA_PIN, RGB>(leds, NUM_LEDS);
-
-  // Add colour palette
-  /*colors[0] = CRGB(60, 0, 60);
-  colors[1] = CRGB(0, 120, 0);
-  colors[2] = CRGB(0, 0, 120);*/
-
-  colors[0] = CRGB(120, 0, 0);
-  colors[1] = CRGB(90, 30, 0);
-  colors[2] = CRGB(60, 60, 0);
-  colors[3] = CRGB(30, 90, 0);
-  colors[4] = CRGB(0, 120, 0);
-  colors[5] = CRGB(0, 90, 30);
-  colors[6] = CRGB(0, 60, 60);
-  colors[7] = CRGB(0, 30, 90);
-  colors[8] = CRGB(0, 0, 120);
-  colors[9] = CRGB(30, 0, 90);
-  colors[10] = CRGB(60, 0, 60);
-  colors[11] = CRGB(90, 0, 30);
 
   // Clear led stripe
   turnOffAllLights();
@@ -104,46 +104,33 @@ void loop() {
     level = getLevel(volume, false);
   }
   
-  // Change color and mode on level jump
+  // Change color and (eventually) mode on level jump
   if(levelJump) {
     // Change color
-    color = randomColor();
+    color = nextColor();
 
     // Change mode eventually
     if(millis() > nextJump) {
       mode = randomMode();
       turnOffAllLights();
 
+      // Set time for next jump
       nextJump = millis() + random(CHANGE_MODE_TIME_MIN, CHANGE_MODE_TIME_MAX);
     }
   }
 
   // Play one mode
-  if(mode == 0) {
-    modePulse(level, colors[color]);
-  } else if(mode == 1) {
-    modeVUMeter(level, colors[color]);
-  } else if(mode == 2) {
-    modeVUMeterMirrored(level, colors[color]);
-  } else if(mode == 3) {
-    modeShooting(volume, colors[color]);
-  } else if(mode == 4) {
-    modeShootingMirrored(volume, colors[color]);
-  }else if(mode == 5) {
-    modeFlashing(volume, colors[color]);
-  } else if(mode == 6) {
-    modeFlashPulse(volume, colors[color]);
-  } else if(mode == 7) {
-    modeFlashPulseSmall(volume, colors[color]);
-  }
-
+  playMode(mode);
+  
   // Send debug information
   debug(volume);
 
   FastLED.show();
 }
 
-// This mode makes a pulse
+/**
+ * This mode makes a pulse
+ */
 void modePulse(int level, CRGB color) {
   for (int i = 0; i < NUM_LEDS; i++) {
       float brightness = float(level) / float(AMOUNT_LEVELS);
@@ -151,7 +138,9 @@ void modePulse(int level, CRGB color) {
   }
 }
 
-// This mode displays a vu meter
+/**
+ * This mode displays a vu meter
+ */
 void modeVUMeter(int level, CRGB color) {
   int ledsPerLevel = (NUM_LEDS / AMOUNT_LEVELS) / 2;
   
@@ -164,7 +153,9 @@ void modeVUMeter(int level, CRGB color) {
   }
 }
 
-// This mode displays a vu meter
+/**
+ * This mode displays a vu meter
+ */
 void modeVUMeterMirrored(int level, CRGB color) {
   int ledsPerLevel = (NUM_LEDS / AMOUNT_LEVELS) / 2;
   
@@ -179,7 +170,9 @@ void modeVUMeterMirrored(int level, CRGB color) {
   }
 }
 
-// This mode "shoots" lights
+/**
+ * This mode "shoots" lights
+ */
 void modeShooting(int volume, CRGB color) {
   int speed = 10;
   
@@ -198,7 +191,9 @@ void modeShooting(int volume, CRGB color) {
   }
 }
 
-// This mode "shoots" lights
+/**
+ * This mode "shoots" lights
+ */
 void modeShootingMirrored(int volume, CRGB color) {
   int speed = 10;
 
@@ -217,7 +212,9 @@ void modeShootingMirrored(int volume, CRGB color) {
   }
 }
 
-// This mode flashes the leds
+/**
+ * This mode flashes the leds
+ */
 void modeFlashing(int volume, CRGB color) {
   average = average * 1.15;
 
@@ -232,7 +229,9 @@ void modeFlashing(int volume, CRGB color) {
   }
 }
 
-// This mode makes a pulse
+/**
+ * This mode makes a pulse
+ */
 void modeFlashPulse(int volume, CRGB color) {
   if(volume > average * 1.15 && averageExceed == false) {
     averageExceed = true;
@@ -252,7 +251,9 @@ void modeFlashPulse(int volume, CRGB color) {
   }
 }
 
-// This mode makes a pulse
+/**
+ * This mode makes a pulse
+ */
 void modeFlashPulseSmall(int volume, CRGB color) {
   if(volume > average * 1.15 && averageExceed == false) {
     averageExceed = true;
@@ -274,7 +275,32 @@ void modeFlashPulseSmall(int volume, CRGB color) {
   }
 }
 
-// Change color of the color
+/**
+ * Plays the given mode
+ */
+void playMode(int mode) {
+  if(mode == 0) {
+    modePulse(level, colors[color]);
+  } else if(mode == 1) {
+    modeVUMeter(level, colors[color]);
+  } else if(mode == 2) {
+    modeVUMeterMirrored(level, colors[color]);
+  } else if(mode == 3) {
+    modeShooting(volume, colors[color]);
+  } else if(mode == 4) {
+    modeShootingMirrored(volume, colors[color]);
+  }else if(mode == 5) {
+    modeFlashing(volume, colors[color]);
+  } else if(mode == 6) {
+    modeFlashPulse(volume, colors[color]);
+  } else if(mode == 7) {
+    modeFlashPulseSmall(volume, colors[color]);
+  }
+}
+
+/**
+ * Change color of the color
+ */
 CRGB setBrightnessOfColor(CRGB color, float brightness) {
   CRGB colorTmp = CRGB(color.r, color.g, color.b);
 
@@ -286,7 +312,9 @@ CRGB setBrightnessOfColor(CRGB color, float brightness) {
   return colorTmp;
 }
 
-// Reads the current volume and returns it
+/**
+ * Reads the current volume and returns it
+ */
 int getVolume(int samples) {
   int volume = 0;
 
@@ -304,7 +332,9 @@ int getVolume(int samples) {
   return volume;
 }
 
-// Maps the volume to a level
+/**
+ * Maps the volume to a level
+ */
 int getLevel(int volume, bool smooth) {
   int levelTmp = map(volume, 550, 750, 0, AMOUNT_LEVELS);
 
@@ -334,7 +364,9 @@ int getLevel(int volume, bool smooth) {
   return levelTmp;
 }
 
-// Calculates the average of the last 20 samples and returns it
+/**
+ * Calculates the average of the last 20 samples and returns it
+ */
 float getAverage(int volume) {
   float average = 0;
 
@@ -350,7 +382,9 @@ float getAverage(int volume) {
   return average;
 }
 
-// Turns off all lights
+/**
+ * Turns off all lights
+ */
 void turnOffAllLights() {
   for (int i = 0; i < NUM_LEDS; i++) {
     leds[i] = CRGB(0, 0, 0);
@@ -359,7 +393,9 @@ void turnOffAllLights() {
   FastLED.show();
 }
 
-// Changes the mode randomly
+/**
+ * Changes the mode randomly
+ */
 int randomMode() {
   int nextMode = random(0, NUM_MODES);
 
@@ -371,14 +407,10 @@ int randomMode() {
   return nextMode;
 }
 
-// Changes the color randomly
-int randomColor() {
-  /*int nextColor = random(0, AMOUNT_COLORS);
-
-  // Make sure the new color isn't the same as the current one
-  while(nextColor == color) {
-    nextColor = random(0, AMOUNT_COLORS);
-  }*/
+/**
+ * Circles to the next color
+ */
+int nextColor() {
   int nextColor = color + 1;
 
   if(nextColor == AMOUNT_COLORS) {
@@ -388,7 +420,9 @@ int randomColor() {
   return nextColor;
 }
 
-// Sends some information for debugging
+/**
+ * Sends some information for debugging
+ */
 void debug(int volume) {
   // Debug volume and level
   Serial.print(volume);
