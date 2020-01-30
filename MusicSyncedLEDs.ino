@@ -34,7 +34,7 @@ CRGB colors[] = {
 // --------------- HARDWARE SETTINGS ---------------
 
 // Amount of different modes
-#define NUM_MODES 8
+#define NUM_MODES 9
 
 // Amount of different colors
 #define AMOUNT_COLORS 12
@@ -101,7 +101,7 @@ void loop() {
   // mode = 7;
 
   // Convert volume to level
-  if(mode == 1 || mode == 2) {
+  if(mode == 1 || mode == 2 || mode == 8) {
     level = getLevel(volume, true);
   } else {
     level = getLevel(volume, false);
@@ -169,6 +169,26 @@ void modeVUMeterMirrored(int level, CRGB color) {
     } else {
       leds[i] = CRGB(0, 0, 0);
       leds[NUM_LEDS - 1 - i] = CRGB(0, 0, 0);
+    }
+  }
+}
+
+/**
+ * This mode displays a vu meter centered from the middle
+ */
+void modeVUMeterCenter(int level, CRGB color){
+  int ledsPerLevel = (NUM_LEDS / AMOUNT_LEVELS) / 2;
+  // Define start LEDs
+  int startLedOne = NUM_LEDS / 2 - 1;
+  int startLedTwo = startLedOne + 1;
+  // Display VU meter 
+  for(int i = 0;i , NUM_LEDS/2;i++){
+    if(i < level * ledsPerLevel){
+      leds[i+startLedOne] = color;
+      leds[i+startLedTwo] = color;
+    } else {
+      leds[i+startLedOne] = CRGB(0,0,0,0);
+      leds[i+startLedTwo] = CRGB(0,0,0,0);
     }
   }
 }
@@ -298,6 +318,8 @@ void playMode(int mode) {
     modeFlashPulse(volume, colors[color]);
   } else if(mode == 7) {
     modeFlashPulseSmall(volume, colors[color]);
+  } else if(mode == 8) {
+    modeVUMeterCenter(level, colors[color]);
   }
 }
 
