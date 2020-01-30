@@ -98,7 +98,7 @@ void loop() {
   volume = getVolume(VOLUME_SAMPLES);
   average = getAverage(volume);
 
-  // mode = 7;
+  // mode = 8;
 
   // Convert volume to level
   if(mode == 1 || mode == 2 || mode == 8) {
@@ -182,13 +182,13 @@ void modeVUMeterCenter(int level, CRGB color){
   int startLedOne = NUM_LEDS / 2 - 1;
   int startLedTwo = startLedOne + 1;
   // Display VU meter 
-  for(int i = 0;i , NUM_LEDS/2;i++){
+  for(int i = 0; i < NUM_LEDS / 2;i++){
     if(i < level * ledsPerLevel){
-      leds[i+startLedOne] = color;
-      leds[i+startLedTwo] = color;
+      leds[startLedOne - i] = color;
+      leds[i + startLedTwo] = color;
     } else {
-      leds[i+startLedOne] = CRGB(0,0,0,0);
-      leds[i+startLedTwo] = CRGB(0,0,0,0);
+      leds[startLedOne - i] = CRGB(0,0,0);
+      leds[i+startLedTwo] = CRGB(0,0,0);
     }
   }
 }
