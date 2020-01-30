@@ -54,6 +54,9 @@ CRGB colors[] = {
 // Led strip array
 CRGB leds[NUM_LEDS];
 
+// Current volume
+int volume;
+
 // Last x samples of the volume
 int volumes[20];
 
@@ -92,7 +95,7 @@ void setup() {
 
 void loop() {
   // Get current volume
-  int volume = getVolume(VOLUME_SAMPLES);
+  volume = getVolume(VOLUME_SAMPLES);
   average = getAverage(volume);
 
   // mode = 7;
