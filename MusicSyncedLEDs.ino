@@ -14,7 +14,10 @@
 // To how many sound levels should the volume be mapped?
 #define AMOUNT_LEVELS 20
 
-// Complete color palette that is circled through
+// Amount of different colors (must be equal to the length of colors[])
+#define AMOUNT_COLORS 12
+
+// Complete color palette that is circled through (should have AMOUNT_COLORS entrys)
 CRGB colors[] = {
     CRGB(120, 0, 0),
     CRGB(90, 30, 0),
@@ -33,20 +36,23 @@ CRGB colors[] = {
 
 // --------------- HARDWARE SETTINGS ---------------
 
+// Amount of LEDS on your stripe
+#define NUM_LEDS 300
+
+// Pin of the LED strip
+#define PIN_LEDS 12
+
+// Pin of the microphone
+#define PIN_MICRO A6
+
+
+// --------------- OTHER SETTINGS ---------------
+
 // Amount of different modes
 #define NUM_MODES 8
 
-// Amount of different colors
-#define AMOUNT_COLORS 12
-
-// How many leds in your strip?
-#define NUM_LEDS 300
-
 // Amount of samples to calculate current volunme
 #define VOLUME_SAMPLES 20
-
-// Pin of the LED strip
-#define DATA_PIN 5
 
 
 // --------------- GLOBAL VARIABLES ---------------
@@ -87,7 +93,7 @@ int mode = 0;
 void setup() {
   // Start communication to LEDs and USB
   Serial.begin(9600);
-  FastLED.addLeds<WS2812B, DATA_PIN, RGB>(leds, NUM_LEDS);
+  FastLED.addLeds<WS2812B, PIN_LEDS, RGB>(leds, NUM_LEDS);
 
   // Clear led stripe
   turnOffAllLights();
@@ -323,7 +329,7 @@ int getVolume(int samples) {
 
   // Take the maximum volume of the last x samples
   for (int i = 0; i < samples; i++) {
-    int sound = analogRead(A0);
+    int sound = analogRead(PIN_MICRO);
 
     if (sound > volume) {
       volume = sound;
