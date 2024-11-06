@@ -6,10 +6,10 @@
 // --------------- STYLE SETTINGS ---------------
 
 // Minimum time before the mode can be changed again (in milliseconds)
-#define CHANGE_MODE_TIME_MIN 5000
+#define CHANGE_MODE_TIME_MIN 4000
 
 // Maximum time before the mode can be changed again (in milliseconds)
-#define CHANGE_MODE_TIME_MAX 15000
+#define CHANGE_MODE_TIME_MAX 7000
 
 // To how many sound levels should the volume be mapped?
 #define AMOUNT_LEVELS 20
@@ -49,7 +49,7 @@ CRGB colors[] = {
 // --------------- OTHER SETTINGS ---------------
 
 // Amount of different modes
-#define NUM_MODES 8
+#define NUM_MODES 11
 
 // Amount of samples to calculate current volunme
 #define VOLUME_SAMPLES 20
@@ -78,8 +78,15 @@ bool averageExceed = false;
 // True if the sound level jumped up
 bool levelJump = false;
 
+bool stroboToggle = false;
+
+// Is toggled on every level jump
+bool levelJumpToggle = false;
+
 // Time the next jump can happen again
 long nextJump = 0;
+
+long nextColorJump = 0;
 
 // True if the color should be changed due to a hard level increase
 int color = 0;
@@ -87,12 +94,14 @@ int color = 0;
 // Current mode for different light styles
 int mode = 0;
 
+int mode1StartLED = 0;
+
 
 // --------------- PROGRAM ---------------
 
 void setup() {
   // Start communication to LEDs and USB
-  Serial.begin(9600);
+  Serial.begin(19200);
   FastLED.addLeds<WS2812B, PIN_LEDS, RGB>(leds, NUM_LEDS);
 
   // Clear led stripe
@@ -104,7 +113,9 @@ void loop() {
   volume = getVolume(VOLUME_SAMPLES);
   average = getAverage(volume);
 
-  // mode = 7;
+  // mode = 5;
+
+  stroboToggle = !stroboToggle;
 
   // Convert volume to level
   if(mode == 1 || mode == 2) {
@@ -117,14 +128,19 @@ void loop() {
   if(levelJump) {
     // Change color
     color = nextColor();
+    levelJumpToggle = !levelJumpToggle;
 
     // Change mode eventually
     if(millis() > nextJump) {
       mode = randomMode();
       turnOffAllLights();
 
-      // Set time for next jump
-      nextJump = millis() + random(CHANGE_MODE_TIME_MIN, CHANGE_MODE_TIME_MAX);
+      int timespan = random(CHANGE_MODE_TIME_MIN, CHANGE_MODE_TIME_MAX);
+      if (mode == 5 or mode == 10) {
+        timespan = timespan / 2; 
+      }
+
+      nextJump = millis() + timespan;
     }
   }
 
@@ -141,9 +157,21 @@ void loop() {
  * This mode makes a pulse
  */
 void modePulse(int level, CRGB color) {
+  float brightness = float(level) / float(AMOUNT_LEVELS);
+
+  if (levelJump) {
+    mode1StartLED = random(0, 250);
+  }
+
+  int endLED = mode1StartLED + 50;
+  
   for (int i = 0; i < NUM_LEDS; i++) {
-      float brightness = float(level) / float(AMOUNT_LEVELS);
-      leds[i] = setBrightnessOfColor(color, brightness);    
+    if (i > mode1StartLED and i < endLED) {
+      leds[i] = setBrightnessOfColor(color, brightness);
+    }
+    else {
+      leds[i] = setBrightnessOfColor(color, 0);
+    }
   }
 }
 
@@ -151,7 +179,7 @@ void modePulse(int level, CRGB color) {
  * This mode displays a vu meter
  */
 void modeVUMeter(int level, CRGB color) {
-  int ledsPerLevel = (NUM_LEDS / AMOUNT_LEVELS) / 2;
+  int ledsPerLevel = (NUM_LEDS / AMOUNT_LEVELS);
   
   for (int i = 0; i < NUM_LEDS; i++) {    
     if(i < level * ledsPerLevel) {
@@ -238,11 +266,22 @@ void modeFlashing(int volume, CRGB color) {
   }
 }
 
+void modeStrobo() {
+  for(int i = 0; i < NUM_LEDS; i++) {
+    if (stroboToggle) {
+      leds[i] = CRGB(120, 120, 120);
+    }
+    else {
+      leds[i] = CRGB(0, 0, 0); 
+    }
+  }
+}
+
 /**
  * This mode makes a pulse
  */
 void modeFlashPulse(int volume, CRGB color) {
-  if(volume > average * 1.15 && averageExceed == false) {
+  if(volume > average * 1.11 && averageExceed == false) {
     averageExceed = true;
 
     for (int i = 0; i < NUM_LEDS; i++) {
@@ -263,8 +302,8 @@ void modeFlashPulse(int volume, CRGB color) {
 /**
  * This mode makes a pulse
  */
-void modeFlashPulseSmall(int volume, CRGB color) {
-  if(volume > average * 1.15 && averageExceed == false) {
+void modeFlashPulseSmall(int volume, CRGB color, float averageModifier) {
+  if(volume > average * averageModifier && averageExceed == false) {
     averageExceed = true;
 
     int start = random(5, NUM_LEDS - 20);
@@ -273,7 +312,7 @@ void modeFlashPulseSmall(int volume, CRGB color) {
       leds[i] = color;
     }
   } else {
-    if(volume < average * 1.15) {
+    if(volume < average * 1.07) {
       averageExceed = false;
     }
 
@@ -303,7 +342,13 @@ void playMode(int mode) {
   } else if(mode == 6) {
     modeFlashPulse(volume, colors[color]);
   } else if(mode == 7) {
-    modeFlashPulseSmall(volume, colors[color]);
+    modeFlashPulseSmall(volume, colors[color], 1.07);
+  } else if(mode == 8) {
+    modeFlashPulseSmall(volume, colors[color], 1.07);
+  } else if(mode == 9) {
+    modeFlashPulseSmall(volume, colors[color], 1.07);
+  } else if(mode == 10) {
+    modeStrobo();
   }
 }
 
@@ -348,7 +393,7 @@ int getLevel(int volume, bool smooth) {
   int levelTmp = map(volume, 550, 750, 0, AMOUNT_LEVELS);
 
   // Did the level jump up?
-  if(levelTmp - level > 10) {
+  if(levelTmp - level > 1) {
     levelJump = true;
   } else {
     levelJump = false;
@@ -420,6 +465,14 @@ int randomMode() {
  * Circles to the next color
  */
 int nextColor() {
+  if (millis() < nextColorJump) {
+    return color;
+  }
+  
+  if (random(0, 10) > 7) {
+    nextColorJump = millis() + random(1000, 2000);
+  }
+  
   int nextColor = color + 1;
 
   if(nextColor == AMOUNT_COLORS) {
@@ -429,19 +482,51 @@ int nextColor() {
   return nextColor;
 }
 
+const int volumeWidth = 5; // Beispielbreite für volume
+const int averageWidth = 5; // Beispielbreite für average
+const int levelWidth = 5; // Beispielbreite für level
+const int colorWidth = 5; // Beispielbreite für color
+const int modeWidth = 2;
+
 /**
  * Sends some information for debugging
  */
 void debug(int volume) {
   // Debug volume and level
-  Serial.print(volume);
+  Serial.print("Mode: ");
+  Serial.print(padLeft(String(mode), modeWidth));
   Serial.print(" | ");
-  Serial.print(average);
+
+  Serial.print("Color: ");
+  Serial.print(padLeft(String(color), colorWidth));
   Serial.print(" | ");
-  Serial.print(level);
+
+  Serial.print("Volume: ");
+  Serial.print(padLeft(String(volume), volumeWidth));
   Serial.print(" | ");
-  Serial.print(color);
+
+  Serial.print("Average: ");
+  Serial.print(padLeft(String(average), averageWidth));
   Serial.print(" | ");
-  Serial.println(mode);
+
+  Serial.print("Volume level: ");
+  //Serial.print(padLeft(String(level), levelWidth));
+
+  for (int i = 0; i < AMOUNT_LEVELS; i++) {
+    if (i < level) {
+      Serial.print("=");
+    }
+    else {
+      Serial.print(" ");
+    }
+  }
+  
+  Serial.println("");
 }
 
+String padLeft(String str, int width) {
+  while (str.length() < width) {
+    str = " " + str;
+  }
+  return str;
+}
